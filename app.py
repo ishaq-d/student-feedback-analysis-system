@@ -2,6 +2,7 @@ from pathlib import Path
 import io
 import math
 import os
+from unittest import result
 import uuid
 from datetime import datetime
 
@@ -29,7 +30,6 @@ from services import (
     apply_filters
 )
 
-
 # ============================================================
 # APPLICATION CONFIGURATION
 # ============================================================
@@ -48,8 +48,14 @@ app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 DATA_PATH = (
     BASE_DIR
     / "data"
-    / "student_feedback_dataset.csv"
+    / "default_dataset.csv"
 )
+
+UPLOAD_DATA_PATH = (
+     BASE_DIR
+     / "uploads"
+    / "current_analysis.csv"
+     )
 
 
 # ============================================================
@@ -59,7 +65,17 @@ DATA_PATH = (
 def load_data():
     """
     Load the currently active analysed dataset.
+
+    If a user has uploaded and analysed a dataset,
+    display that dataset. Otherwise, use the default
+    demonstration dataset.
     """
+
+    # Use the user's uploaded analysis if available
+    if UPLOAD_DATA_PATH.exists():
+        return pd.read_csv(UPLOAD_DATA_PATH)
+
+    # Fall back to the default demonstration dataset
     if not DATA_PATH.exists():
         return pd.DataFrame(
             columns=[
@@ -72,7 +88,6 @@ def load_data():
         )
 
     return pd.read_csv(DATA_PATH)
-
 
 # ============================================================
 # DASHBOARD DATA
@@ -132,12 +147,22 @@ def get_dashboard_data(df=None):
         "category_data": category_data
     }
 
+# ============================================================
+# HOME
+# ============================================================
+
+@app.route("/")
+def home():
+    return render_template(
+        "home.html",
+        active_page="home"
+    )
 
 # ============================================================
 # DASHBOARD
 # ============================================================
 
-@app.route("/")
+@app.route("/dashboard")
 def dashboard():
     df = load_data()
     metadata = load_metadata()
@@ -239,12 +264,14 @@ def upload():
         # Save analysed dataset
         # ----------------------------------------------------
 
-        DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
-        result.to_csv(
-            DATA_PATH,
-            index=False
-        )
+        UPLOAD_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+        result.to_csv(
+        UPLOAD_DATA_PATH,
+        index=False
+    )
+        
+        
         flash(
             (
                 f"Dataset uploaded and analysed successfully: "
